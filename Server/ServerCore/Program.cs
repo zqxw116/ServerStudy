@@ -2,37 +2,31 @@ namespace ServerCore
 {
     class program
     {
-        static volatile int count = 0;
-        static Lock _lock = new Lock();
+        static ThreadLocal<string> ThreadName = new ThreadLocal<string>(() => 
+        { 
+            return $"My Name is {Thread.CurrentThread.ManagedThreadId}"; 
+        });
+        // 특정 Thread에서 Thread name을 수정해도 다른 곳에는 영향을 주지 않는다.
+
+        static void WhAmI()
+        {
+            bool repeat = ThreadName.IsValueCreated;
+            if (repeat)
+                Console.WriteLine(ThreadName.Value + "(repeat)");
+            else
+                Console.WriteLine(ThreadName.Value);
+
+
+
+        }
         static void Main(string[] args)
         {
-            Task t1 = new Task(delegate ()
-            {
-                for (int i = 0; i < 100000; i++)
-                {
-                    _lock.WriteLock();
-                    _lock.WriteLock();
-                    count++;
-                    _lock.WriteUnLock();
-                    _lock.WriteUnLock();
-                }
-            });
+            ThreadPool.SetMinThreads(1, 1);
+            ThreadPool.SetMaxThreads(3, 3);
+            // Parallel 여기다 넣어주는 action만큼 task로 만들어서 실행해준다
+            Parallel.Invoke(WhAmI, WhAmI, WhAmI, WhAmI, WhAmI, WhAmI, WhAmI, WhAmI, WhAmI);
 
-            Task t2 = new Task(delegate ()
-            {
-                for (int i = 0; i < 100000; i++)
-                {
-                    _lock.WriteLock();
-                    count--;
-                    _lock.WriteUnLock();
-                }
-            });
-
-            t1.Start();
-            t2.Start();
-
-            Task.WaitAll(t1, t2);
-            Console.WriteLine(count);
+            ThreadName.Dispose();
         }
     }
 }
