@@ -21,12 +21,15 @@ namespace ServerCore
             // backlog : 최대 대기수
             listenSocket.Listen(10); // 최대 몇 명 들어올 수 있는지
 
-            //클라 접속 되면 연결 해준 함수로 콜백 해줌(콜백 함수 등록)
-            SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-            args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptComplated);
+            for (int i = 0; i < 10; i++)
+            {
+                //클라 접속 되면 연결 해준 함수로 콜백 해줌(콜백 함수 등록)
+                SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+                args.Completed += new EventHandler<SocketAsyncEventArgs>(OnAcceptComplated);
 
-            //소켓 오픈
-            RegisterAccept(args); 
+                //소켓 오픈
+                RegisterAccept(args);
+            }
         }
 
         void RegisterAccept(SocketAsyncEventArgs _args)
