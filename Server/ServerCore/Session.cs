@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace ServerCore
 {
@@ -15,19 +13,19 @@ namespace ServerCore
         
         object _lock = new object();
         Queue<byte[]> sendQueue = new Queue<byte[]>();
-        bool _pending = false;
+        List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>(); // 대기중인 목록
         SocketAsyncEventArgs sendArgs = new SocketAsyncEventArgs();
+        SocketAsyncEventArgs recvArgs = new SocketAsyncEventArgs();
 
         public void Start(Socket _socket)
         {
             socket = _socket;
-            SocketAsyncEventArgs recvArgs = new SocketAsyncEventArgs();
             recvArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnRecvCompleted);
             recvArgs.SetBuffer(new byte[1024], 0, 1024); // buffer 연결해서 데이터 받을 준비.
 
             sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
 
-            RegisterRecv(recvArgs);
+            RegisterRecv();
         }
 
         public void Send(byte[] _sendBuff)
@@ -35,7 +33,8 @@ namespace ServerCore
             lock (_lock)
             {
                 sendQueue.Enqueue(_sendBuff);
-                if (_pending == false)
+                // 대기중인게 1개도 없으면
+                if (_pendingList.Count == 0)
                 {
                     RegisterSend();
                 }
@@ -59,10 +58,15 @@ namespace ServerCore
 
         void RegisterSend()
         {
-            // 상위에서 lock을 하고 있기 때문에 lock안해도 된다.
-            _pending = true;
-            byte[] buff = sendQueue.Dequeue();
-            sendArgs.SetBuffer(buff, 0, buff.Length);
+            while (sendQueue.Count > 0)
+            {
+                byte[] buff = sendQueue.Dequeue();
+                // ArraySegment = 어떤 배열의 일부 라는 구조체 // 배열, 시작 인덱스, 배열크기
+                _pendingList.Add(new ArraySegment<byte>(buff, 0, buff.Length));
+
+            }
+            // 그저 BufferList 적용하는 방법은 =을 사용해서 넣어주는 것이다. Add는 안된다.
+            sendArgs.BufferList = _pendingList;
 
             bool pending = socket.SendAsync(sendArgs);
             if (pending == false) 
@@ -79,18 +83,19 @@ namespace ServerCore
             {
                 if (_args.BytesTransferred > 0 && _args.SocketError == SocketError.Success)
                 {
-
                     try
                     {
+                        sendArgs.BufferList = null;
+                        _pendingList.Clear();
+
+                        Console.WriteLine($"Transferred bytes : {sendArgs.BytesTransferred}");
+
                         // sendQueue를 확인해줘야 한다.
                         // 내 작업중 다른 사람이 추가했을 수 있기 때문이다
                         if (sendQueue.Count > 0)
                         {
                             RegisterSend();
                         }
-                        else
-                              _pending = false;
-
                     }
                     catch (Exception e)
                     {
@@ -106,13 +111,13 @@ namespace ServerCore
         }
 
 
-        void RegisterRecv(SocketAsyncEventArgs _args)
+        void RegisterRecv()
         {
             // 비동기, 논블럭
-            bool pending = socket.ReceiveAsync(_args);
+            bool pending = socket.ReceiveAsync(recvArgs);
             if (pending == false)
             {
-                OnRecvCompleted(null, _args);
+                OnRecvCompleted(null, recvArgs);
             }
         }
 
@@ -126,7 +131,7 @@ namespace ServerCore
                     // TODO
                     string recvData = Encoding.UTF8.GetString(_args.Buffer, _args.Offset, _args.BytesTransferred);
                     Console.WriteLine($"[From Client] {recvData}");
-                    RegisterRecv(_args);
+                    RegisterRecv();
                 }
                 catch (Exception e)
                 {
