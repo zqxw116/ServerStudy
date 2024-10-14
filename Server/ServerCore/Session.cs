@@ -12,6 +12,12 @@ namespace ServerCore
         Socket socket;
         int disconnected = 0;
 
+        
+        object _lock = new object();
+        Queue<byte[]> sendQueue = new Queue<byte[]>();
+        bool _pending = false;
+        SocketAsyncEventArgs sendArgs = new SocketAsyncEventArgs();
+
         public void Start(Socket _socket)
         {
             socket = _socket;
@@ -19,12 +25,21 @@ namespace ServerCore
             recvArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnRecvCompleted);
             recvArgs.SetBuffer(new byte[1024], 0, 1024); // buffer 연결해서 데이터 받을 준비.
 
+            sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
+
             RegisterRecv(recvArgs);
         }
 
         public void Send(byte[] _sendBuff)
         {
-            socket.Send(_sendBuff);
+            lock (_lock)
+            {
+                sendQueue.Enqueue(_sendBuff);
+                if (_pending == false)
+                {
+                    RegisterSend();
+                }
+            }
         }
 
         public void Disconnect()
@@ -41,6 +56,56 @@ namespace ServerCore
         }
 
         #region 네트워크 통신
+
+        void RegisterSend()
+        {
+            // 상위에서 lock을 하고 있기 때문에 lock안해도 된다.
+            _pending = true;
+            byte[] buff = sendQueue.Dequeue();
+            sendArgs.SetBuffer(buff, 0, buff.Length);
+
+            bool pending = socket.SendAsync(sendArgs);
+            if (pending == false) 
+            {
+                OnSendCompleted(null, sendArgs);
+            }
+        }
+
+        void OnSendCompleted(object _sender, SocketAsyncEventArgs _args)
+        {            
+            // 상위에서 lock을 하고 있기 때문에 lock안해도 된다.
+            // 하지만 콜백 방식으로 호출하기도 한다. 결국 = lock
+            lock (_lock)
+            {
+                if (_args.BytesTransferred > 0 && _args.SocketError == SocketError.Success)
+                {
+
+                    try
+                    {
+                        // sendQueue를 확인해줘야 한다.
+                        // 내 작업중 다른 사람이 추가했을 수 있기 때문이다
+                        if (sendQueue.Count > 0)
+                        {
+                            RegisterSend();
+                        }
+                        else
+                              _pending = false;
+
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"OnRecvCompleted Fao;ed {e}");
+                    }
+                }
+                else
+                {
+                    Disconnect();
+                }
+
+            }
+        }
+
+
         void RegisterRecv(SocketAsyncEventArgs _args)
         {
             // 비동기, 논블럭
