@@ -4,31 +4,41 @@ using System.Text;
 
 namespace ServerCore
 {
+    /// <summary>
+    /// 컨텐츠 단
+    /// </summary>
+    class GameSession : Session
+    {
+        public override void OnConnected(EndPoint _endPoint)
+        {
+            Console.WriteLine($"OnConnected : {_endPoint}");
+
+            byte[] sendBuff = Encoding.UTF8.GetBytes("Welcome to MMORPG Server !");
+            Send(sendBuff);
+            Thread.Sleep(1000);
+            Disconnect();
+        }
+
+        public override void OnDisConnected(EndPoint _endPoint)
+        {
+            Console.WriteLine($"OnDisConnected : {_endPoint}");
+        }
+
+        public override void OnRecv(ArraySegment<byte> _buffer)
+        {
+            // 무엇을 할건지 넣어주는 것.
+            string recvData = Encoding.UTF8.GetString(_buffer.Array, _buffer.Offset, _buffer.Count);
+            Console.WriteLine($"[From Client] {recvData}");
+        }
+
+        public override void OnSend(int _numOfBytes)
+        {
+            Console.WriteLine($"Transferred bytes : {_numOfBytes}");
+        }
+    }
     class program
     {
         static Listener listener = new Listener();
-        static void OnAcceptHandler(Socket _clientSocket)
-        {
-            try
-            {
-                Session session = new Session();
-                session.Start(_clientSocket);
-
-                byte[] sendBuff = Encoding.UTF8.GetBytes("Welcome to MMORPG Server !");
-                session.Send(sendBuff);
-
-                Thread.Sleep(1000);
-
-                session.Disconnect();
-                session.Disconnect();
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-        }
-
 
         static void Main(string[] args)
         {
@@ -38,7 +48,7 @@ namespace ServerCore
             IPAddress ipAddr = ipHost.AddressList[0]; //아이피가 여러개 있을수 있으며 배열로 ip를 반환함
             IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
 
-            listener.Init(endPoint, OnAcceptHandler);
+            listener.Init(endPoint, () => { return new GameSession(); });
             Console.WriteLine("Listening...");
 
             while (true)

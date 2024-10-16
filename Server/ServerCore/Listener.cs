@@ -6,13 +6,15 @@ namespace ServerCore
     class Listener
     {
         Socket listenSocket;
-        Action<Socket> onAcceptHandler;
 
-        public void Init(IPEndPoint _endPoint, Action<Socket> _onacceptHandler)
+        // session을 어떤 방식으로 누구를 만들지 정해주는 것
+        Func<Session> sessionFactory;
+
+        public void Init(IPEndPoint _endPoint, Func<Session> _onacceptHandler)
         {
             // 문지기
             listenSocket = new Socket(_endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            onAcceptHandler += _onacceptHandler;
+            sessionFactory += _onacceptHandler;
 
             // 문지기 교육
             listenSocket.Bind(_endPoint); // 포트번호 기입
@@ -51,9 +53,12 @@ namespace ServerCore
         {        
             //소켓 에러유무 확인
             if (_args.SocketError == SocketError.Success)
-            {            	
-                //접속이 완료되어 호출자에게 접속 소켓 전달.
-                onAcceptHandler.Invoke(_args.AcceptSocket); 
+            {
+                // Session을 강제로 만들면 문제가 된다.
+                Session session = sessionFactory.Invoke();
+                session.Start(_args.AcceptSocket);
+                // 만약 클라에서 연결을 끊으면 AcceptSocket에 접근할 수 없다. 에러발생
+                session.OnConnected(_args.AcceptSocket.RemoteEndPoint); 
             }
             else
             {
