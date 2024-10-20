@@ -6,12 +6,12 @@ using System.Text;
 
 namespace ServerCore
 {
-    abstract class Session
+    public abstract class Session
     {
         Socket socket;
-        int disconnected = 0;
+        int disconnected = 0;//커넥션 확인 하는 플레그
 
-        
+
         object _lock = new object();
         Queue<byte[]> sendQueue = new Queue<byte[]>();
         List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>(); // 대기중인 목록
@@ -25,12 +25,14 @@ namespace ServerCore
         public abstract void OnDisConnected(EndPoint _endPoint);
 
 
-        public void Start(Socket _socket)
+        public void Start(Socket _clientSocket)
         {
-            socket = _socket;
+            socket = _clientSocket;
+            //데이터 수신 완료 후 실행할 메소드 설정.
             recvArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnRecvCompleted);
-            recvArgs.SetBuffer(new byte[1024], 0, 1024); // buffer 연결해서 데이터 받을 준비.
+            recvArgs.SetBuffer(new byte[1024], 0, 1024);//버퍼 사이즈 설정.
 
+            //데이터 송신 완료 후 실행할 메소드 설정.
             sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
 
             RegisterRecv();
@@ -38,6 +40,10 @@ namespace ServerCore
 
         public void Send(byte[] _sendBuff)
         {
+            /* SocketAsyncEventArgs 에서 실행되는 Thread와 Send를 호출하는 컨턴츠단 Thread가 동시에 같은 자원에 접근시
+             * 문제가 발생하여 동기화 lock 적용
+             * 데이터를 바로 전송할 수 있는 상태가 아닐경우 que에 넣고 넘김.
+             */
             lock (_lock)
             {
                 sendQueue.Enqueue(_sendBuff);
@@ -67,6 +73,8 @@ namespace ServerCore
 
         void RegisterSend()
         {
+            //_sendArgs.BufferList : 데이터 전송을 한건씩 하는게 아닌 보낼 데이터를 묶어서 한번에 보냄.
+            
             while (sendQueue.Count > 0)
             {
                 byte[] buff = sendQueue.Dequeue();
@@ -95,8 +103,8 @@ namespace ServerCore
                 {
                     try
                     {
-                        sendArgs.BufferList = null;
                         _pendingList.Clear();
+                        sendArgs.BufferList = null;
 
                         OnSend(sendArgs.BytesTransferred);
 
@@ -123,7 +131,9 @@ namespace ServerCore
 
         void RegisterRecv()
         {
-            // 비동기, 논블럭
+            /* _socket.ReceiveAsync 데이터가 수신되면 false 반환. 없을 경우 true를 반환 하며 이후 데이터가 수신되면
+             * SocketAsyncEventArgs에 의해 OnRecvCompleted() 실행.
+            */
             bool pending = socket.ReceiveAsync(recvArgs);
             if (pending == false)
             {
@@ -138,12 +148,14 @@ namespace ServerCore
             {
                 try
                 {
-                    OnRecv(new ArraySegment<byte>(_args.Buffer, _args.Offset, _args.BytesTransferred));
+                    OnRecv(new ArraySegment<byte>(_args.Buffer, _args.Offset, _args.BytesTransferred));                    
+                    //데이터를 다시 수신할 수 있는 상태로 등록.
+
                     RegisterRecv();
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"OnRecvCompleted Fao;ed {e}");
+                    Console.WriteLine($"OnRecvCompleted Failed {e}");
                 }
             }
             else
