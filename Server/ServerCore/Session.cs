@@ -11,6 +11,7 @@ namespace ServerCore
         Socket socket;
         int disconnected = 0;//커넥션 확인 하는 플레그
 
+        RecvBuffer recvBuffer = new RecvBuffer(1024);
 
         object _lock = new object();
         Queue<byte[]> sendQueue = new Queue<byte[]>();
@@ -20,7 +21,7 @@ namespace ServerCore
 
         // 클라이언트가 처음 접속했을 때
         public abstract void OnConnected(EndPoint _endPoint);
-        public abstract void OnRecv(ArraySegment<byte> _buffer);
+        public abstract int OnRecv(ArraySegment<byte> _buffer); // 얼마만큼의 데이터를 처리했느냐를 반환.
         public abstract void OnSend(int _numOfBytes);
         public abstract void OnDisConnected(EndPoint _endPoint);
 
@@ -74,7 +75,7 @@ namespace ServerCore
         void RegisterSend()
         {
             //_sendArgs.BufferList : 데이터 전송을 한건씩 하는게 아닌 보낼 데이터를 묶어서 한번에 보냄.
-            
+
             while (sendQueue.Count > 0)
             {
                 byte[] buff = sendQueue.Dequeue();
@@ -131,6 +132,13 @@ namespace ServerCore
 
         void RegisterRecv()
         {
+            recvBuffer.Clean();
+            // 무조건 초기 설정한 버퍼로 하는게 아닌,
+            // 현재 유효한 buffer인지 확인
+            ArraySegment<byte> segment = recvBuffer.WriteSegment;
+            recvArgs.SetBuffer(segment.Array, segment.Offset, segment.Count); // offset부터 count까지 빈 공간이라고 찝어둠
+
+
             /* _socket.ReceiveAsync 데이터가 수신되면 false 반환. 없을 경우 true를 반환 하며 이후 데이터가 수신되면
              * SocketAsyncEventArgs에 의해 OnRecvCompleted() 실행.
             */
@@ -148,9 +156,33 @@ namespace ServerCore
             {
                 try
                 {
-                    OnRecv(new ArraySegment<byte>(_args.Buffer, _args.Offset, _args.BytesTransferred));                    
-                    //데이터를 다시 수신할 수 있는 상태로 등록.
+                    // 1. Wrtie 커서  먼저 이동
+                    // BytesTransferred : 수신받은 SocketAsyncEventArgs의 byte
+                    if (recvBuffer.OnWrite(_args.BytesTransferred) == false)
+                    {
+                        // 버그. 절대 일어날 일 없음.
+                        Disconnect();
+                        return;
+                    }
 
+                    // 2. 컨텐츠 쪽으로 데이터를 넘겨주고 얼마나 처리했는지 받는다
+                    // 100byte를 받는다고 정해도 80byte가 오고 이후에 20 byte가 올 수 있다. 이것을 받았을 때 처리를 정해야 한다.
+                    int processLen = OnRecv(recvBuffer.ReadSegment);     // 처리한 버퍼 길이   
+                    if (processLen < 0 || recvBuffer.DataSize < processLen)
+                    {
+                        Disconnect();
+                        return;
+                    }
+                    
+                    // 3. Read 커서 이동
+                    if (recvBuffer.OnRead(processLen) == false)
+                    {
+                        Disconnect();
+                        return;
+                    }
+
+
+                    //데이터를 다시 수신할 수 있는 상태로 등록.
                     RegisterRecv();
                 }
                 catch (Exception e)

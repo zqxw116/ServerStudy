@@ -27,11 +27,12 @@ namespace DummyClient
             Console.WriteLine($"OnDisConnected : {_endPoint}");
         }
 
-        public override void OnRecv(ArraySegment<byte> _buffer)
+        public override int OnRecv(ArraySegment<byte> _buffer)
         {
             // 무엇을 할건지 넣어주는 것.
             string recvData = Encoding.UTF8.GetString(_buffer.Array, _buffer.Offset, _buffer.Count);
             Console.WriteLine($"[From Sever] {recvData}");
+            return _buffer.Count;
         }
 
         public override void OnSend(int _numOfBytes)
