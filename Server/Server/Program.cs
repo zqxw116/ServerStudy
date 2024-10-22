@@ -5,6 +5,15 @@ using ServerCore;
 
 namespace Server
 {
+    class Knight
+    {
+        public int hp;
+        public int  attack;
+        public string name;
+        public List<int> skills = new List<int>();
+    }
+
+
     class Program
     {
         /// <summary>
@@ -16,7 +25,30 @@ namespace Server
             {
                 Console.WriteLine($"OnConnected : {_endPoint}");
 
-                byte[] sendBuff = Encoding.UTF8.GetBytes("Welcome to MMORPG Server !");
+                Knight knight = new Knight() { hp = 100, attack = 10 };
+
+
+                // 할당 받은 buffer 열어서 쪼개서 사용하고
+                ArraySegment<byte> openSegment = SendBufferHelper.Open(4096);
+                // [ 100 ] [10 ]
+                byte[] buffer = BitConverter.GetBytes(knight.hp);
+                byte[] buffer2 = BitConverter.GetBytes(knight.attack);
+
+                // 시작지점, 인덱스, 목적지, 시작인덱스, 버퍼의 길이
+                Array.Copy(buffer, 0, openSegment.Array, openSegment.Offset, buffer.Length);
+                Array.Copy(buffer2, 0, openSegment.Array, openSegment.Offset + buffer.Length, buffer2.Length);
+                
+                // buffer 닫는다.
+                // 넉넉하게 4096으로 잡아뒀지만, 예로 실질적 사용은 4byte(100), 4byte(10) 총 8byte만 보낸다.
+                ArraySegment<byte> sendBuff = SendBufferHelper.Close(buffer.Length + buffer2.Length);
+                
+
+
+                // 100명
+                // 1명 이동 -> 이동패킷 100명
+                // 100명 이동 ->  이동패킷 100 * 100 = 1만
+                // 외부에서 한 번만 만들어두고 사용하는게 효율적.
+
                 Send(sendBuff);
                 Thread.Sleep(1000);
                 Disconnect();

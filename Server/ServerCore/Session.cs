@@ -14,7 +14,7 @@ namespace ServerCore
         RecvBuffer recvBuffer = new RecvBuffer(1024);
 
         object _lock = new object();
-        Queue<byte[]> sendQueue = new Queue<byte[]>();
+        Queue<ArraySegment<byte>> sendQueue = new Queue<ArraySegment<byte>>();
         List<ArraySegment<byte>> _pendingList = new List<ArraySegment<byte>>(); // 대기중인 목록
         SocketAsyncEventArgs sendArgs = new SocketAsyncEventArgs();
         SocketAsyncEventArgs recvArgs = new SocketAsyncEventArgs();
@@ -39,7 +39,7 @@ namespace ServerCore
             RegisterRecv();
         }
 
-        public void Send(byte[] _sendBuff)
+        public void Send(ArraySegment<byte> _sendBuff)
         {
             /* SocketAsyncEventArgs 에서 실행되는 Thread와 Send를 호출하는 컨턴츠단 Thread가 동시에 같은 자원에 접근시
              * 문제가 발생하여 동기화 lock 적용
@@ -78,9 +78,9 @@ namespace ServerCore
 
             while (sendQueue.Count > 0)
             {
-                byte[] buff = sendQueue.Dequeue();
+                ArraySegment<byte> buff = sendQueue.Dequeue();
                 // ArraySegment = 어떤 배열의 일부 라는 구조체 // 배열, 시작 인덱스, 배열크기
-                _pendingList.Add(new ArraySegment<byte>(buff, 0, buff.Length));
+                _pendingList.Add(buff);
 
             }
             // 그저 BufferList 적용하는 방법은 =을 사용해서 넣어주는 것이다. Add는 안된다.
