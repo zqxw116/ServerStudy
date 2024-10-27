@@ -5,42 +5,39 @@ using ServerCore;
 
 namespace Server
 {
-    class Knight
+    class Packet
     {
-        public int hp;
-        public int  attack;
-        public string name;
-        public List<int> skills = new List<int>();
+        public ushort size; // 2byte
+        public ushort packetId; // 2byte
     }
-
 
     class Program
     {
         /// <summary>
         /// 컨텐츠 단
         /// </summary>
-        class GameSession : Session
+        class GameSession : PacketSession
         {
             public override void OnConnected(EndPoint _endPoint)
             {
                 Console.WriteLine($"OnConnected : {_endPoint}");
 
-                Knight knight = new Knight() { hp = 100, attack = 10 };
+                //Packet packet = new Packet() { size = 100, packetId = 10 };
 
 
-                // 할당 받은 buffer 열어서 쪼개서 사용하고
-                ArraySegment<byte> openSegment = SendBufferHelper.Open(4096);
-                // [ 100 ] [10 ]
-                byte[] buffer = BitConverter.GetBytes(knight.hp);
-                byte[] buffer2 = BitConverter.GetBytes(knight.attack);
+                //// 할당 받은 buffer 열어서 쪼개서 사용하고
+                //ArraySegment<byte> openSegment = SendBufferHelper.Open(4096);
+                //// [ 100 ] [10 ]
+                //byte[] buffer = BitConverter.GetBytes(packet.size);
+                //byte[] buffer2 = BitConverter.GetBytes(packet.packetId);
 
-                // 시작지점, 인덱스, 목적지, 시작인덱스, 버퍼의 길이
-                Array.Copy(buffer, 0, openSegment.Array, openSegment.Offset, buffer.Length);
-                Array.Copy(buffer2, 0, openSegment.Array, openSegment.Offset + buffer.Length, buffer2.Length);
+                //// 시작지점, 인덱스, 목적지, 시작인덱스, 버퍼의 길이
+                //Array.Copy(buffer, 0, openSegment.Array, openSegment.Offset, buffer.Length);
+                //Array.Copy(buffer2, 0, openSegment.Array, openSegment.Offset + buffer.Length, buffer2.Length);
                 
-                // buffer 닫는다.
-                // 넉넉하게 4096으로 잡아뒀지만, 예로 실질적 사용은 4byte(100), 4byte(10) 총 8byte만 보낸다.
-                ArraySegment<byte> sendBuff = SendBufferHelper.Close(buffer.Length + buffer2.Length);
+                //// buffer 닫는다.
+                //// 넉넉하게 4096으로 잡아뒀지만, 예로 실질적 사용은 4byte(100), 4byte(10) 총 8byte만 보낸다.
+                //ArraySegment<byte> sendBuff = SendBufferHelper.Close(buffer.Length + buffer2.Length);
                 
 
 
@@ -49,9 +46,18 @@ namespace Server
                 // 100명 이동 ->  이동패킷 100 * 100 = 1만
                 // 외부에서 한 번만 만들어두고 사용하는게 효율적.
 
-                Send(sendBuff);
-                Thread.Sleep(1000);
+                //Send(sendBuff);
+                Thread.Sleep(5000);
                 Disconnect();
+            }
+
+            // 첫 2byte는 사이즈, 다음 2byte는 패킷 id
+            public override void OnRecvPacket(ArraySegment<byte> _buffer)
+            {
+                ushort szie = BitConverter.ToUInt16(_buffer.Array, _buffer.Offset);
+                ushort id = BitConverter.ToUInt16(_buffer.Array, _buffer.Offset + 2); // size 더해줌
+                Console.WriteLine($"OnRecvPacket szie : {szie},  id : {id}");
+                
             }
 
             public override void OnDisConnected(EndPoint _endPoint)
@@ -59,13 +65,6 @@ namespace Server
                 Console.WriteLine($"OnDisConnected : {_endPoint}");
             }
 
-            public override int OnRecv(ArraySegment<byte> _buffer)
-            {
-                // 무엇을 할건지 넣어주는 것.
-                string recvData = Encoding.UTF8.GetString(_buffer.Array, _buffer.Offset, _buffer.Count);
-                Console.WriteLine($"[From Client] {recvData}");
-                return _buffer.Count;
-            }
 
             public override void OnSend(int _numOfBytes)
             {

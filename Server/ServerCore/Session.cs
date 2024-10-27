@@ -6,6 +6,47 @@ using System.Text;
 
 namespace ServerCore
 {
+    public abstract class PacketSession : Session
+    {
+        public static readonly int HeaderSize = 2;
+        // [size(2)][packetId(2)][....][size(2)][packetId(2)][....]
+        public sealed override int OnRecv(ArraySegment<byte> _buffer)
+        {
+            int processLen = 0;
+            
+            // 패킷 처리할 수 있게 계속 체크
+            while (true)
+            {
+                // [size(2)] 추출해서 맞는지 확인
+                // 최소한 헤더는 파싱할 수 있는지 확인
+                if (_buffer.Count < HeaderSize)
+                    break;
+
+                // 패킷이 완전체로 도착했는지 확인.(ushort만큼 찾아옴)
+                ushort dataSize = BitConverter.ToUInt16(_buffer.Array, _buffer.Offset);
+                if (_buffer.Count < dataSize)
+                    break; // 패킷이 완전체가 아니라 부분적으로 옴
+
+
+
+                // 여기까지 왔으면 패킷 조립 가능
+                // 패킷이 해당하는 영역을 다시 집어서 넘겨줌. [size(2)][packetId(2)][....] 범위가 이러니까 알아서 잘 파싱해서 사용해라.
+                OnRecvPacket(new ArraySegment<byte>(_buffer.Array, _buffer.Offset, dataSize));
+                //ArraySegment는 struct라 힙 영역에 저장하는게 아니다.
+
+
+                //[size(2)][packetId(2)][....]
+                processLen += dataSize;
+                // [....]이후 부분으로 옮겨줘야 한다. offset + dataSize.  처리할 부분은 전체크기 - 데이터 크기가 뒷부분 크기
+                _buffer = new ArraySegment<byte>(_buffer.Array, _buffer.Offset + dataSize, _buffer.Count - dataSize);
+            }
+            return 0;
+        }
+
+        public abstract void OnRecvPacket(ArraySegment<byte> _buffer);
+
+    }
+
     public abstract class Session
     {
         Socket socket;
@@ -31,12 +72,12 @@ namespace ServerCore
             socket = _clientSocket;
             //데이터 수신 완료 후 실행할 메소드 설정.
             recvArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnRecvCompleted);
-            recvArgs.SetBuffer(new byte[1024], 0, 1024);//버퍼 사이즈 설정.
-
             //데이터 송신 완료 후 실행할 메소드 설정.
             sendArgs.Completed += new EventHandler<SocketAsyncEventArgs>(OnSendCompleted);
 
             RegisterRecv();
+
+
         }
 
         public void Send(ArraySegment<byte> _sendBuff)

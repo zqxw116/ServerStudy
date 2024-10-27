@@ -12,7 +12,7 @@ namespace ServerCore
         public static ThreadLocal<SendBuffer> CurrentBuffer = new ThreadLocal<SendBuffer>(() => { return null; });
         
         // 쓰레드마다 chunk를 잘라서 사용한다
-        public static int ChunkSize { get; set; } = 4096 * 100; // Chunk = 뭉태기 느낌. 엄청 큰 느낌
+        public static int ChunkSize { get; set; } = 4096; // Chunk = 뭉태기 느낌. 엄청 큰 느낌
 
         public static ArraySegment<byte> Open(int _reserveSize)
         {
@@ -36,7 +36,7 @@ namespace ServerCore
     {
         // [(usedSize)] [] [] [] [] [] [] [] [] [] 10byte
         byte[] buffer;
-        int usedSize;
+        int usedSize = 0;
 
         public int FreeSize { get { return buffer.Length - usedSize; }} // 전체 사이즈 - 커서 위치
                
