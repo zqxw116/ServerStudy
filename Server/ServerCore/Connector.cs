@@ -46,10 +46,11 @@ namespace ServerCore
                 // 연결됐으면 start. 전달받은 연결된 소캣으로
                 session.Start(_args.ConnectSocket);
                 session.OnConnected(_args.RemoteEndPoint);
+                Console.WriteLine($"[Connector] OnConnectCompleted Success : {_args.RemoteEndPoint}");
             }
             else
             {
-                Console.WriteLine($"OnConnectCompleted Fail : {_args.SocketError}");
+                Console.WriteLine($"[Connector] OnConnectCompleted Fail : {_args.SocketError}");
             }
 
         }

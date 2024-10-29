@@ -59,10 +59,12 @@ namespace ServerCore
                 session.Start(_args.AcceptSocket);
                 // 만약 클라에서 연결을 끊으면 AcceptSocket에 접근할 수 없다. 에러발생
                 session.OnConnected(_args.AcceptSocket.RemoteEndPoint); 
+                Console.WriteLine($"[Listener] OnConnectCompleted Success : {_args.RemoteEndPoint}");
+
             }
             else
             {
-                Console.WriteLine(_args.SocketError.ToString());
+                Console.WriteLine($"[Listener] {_args.SocketError.ToString()}");
             }
 
             //다음 접속을 기다릴 수 있도록 AcceptAsync를 재 실행.

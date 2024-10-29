@@ -47,8 +47,11 @@ namespace ServerCore
         public ArraySegment<byte> Open(int _reserveSize) // _reserveSize : 예상한 사이즈크기
         {
 
-            if (_reserveSize == FreeSize)
-                return null;
+            //if (_reserveSize == FreeSize)
+            //    return null;
+
+            if (_reserveSize > FreeSize)
+                throw new InvalidOperationException("Not enough free size in buffer.");
 
             return new ArraySegment<byte>(buffer, usedSize, _reserveSize);
         }
@@ -56,8 +59,8 @@ namespace ServerCore
         public ArraySegment<byte> Close(int _usedSize)
         {
                                                             // buffer에서 시작, usedSize에서 시작한 다음, 실제 사용되는 크기
-            ArraySegment<byte> segment = new ArraySegment<byte>(buffer, usedSize, usedSize);
-            usedSize += usedSize; // 커서위치만큼 이동
+            ArraySegment<byte> segment = new ArraySegment<byte>(buffer, usedSize, _usedSize);
+            usedSize += _usedSize; // 커서위치만큼 이동
 
             return segment;
         }

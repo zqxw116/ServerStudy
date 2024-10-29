@@ -18,7 +18,7 @@ namespace DummyClient
     {
         public override void OnConnected(EndPoint _endPoint)
         {
-            Console.WriteLine($"OnConnected : {_endPoint}");
+            Console.WriteLine($"[Client] OnConnected : {_endPoint}");
             
             Packet packet = new Packet() { size = 4, packetId = 7};
             //보낸다.(블로킹 함수)
@@ -46,7 +46,7 @@ namespace DummyClient
 
         public override void OnDisConnected(EndPoint _endPoint)
         {
-            Console.WriteLine($"OnDisConnected : {_endPoint}");
+            Console.WriteLine($"[Client] OnDisConnected : {_endPoint}");
         }
 
         public override int OnRecv(ArraySegment<byte> _buffer)
@@ -59,7 +59,7 @@ namespace DummyClient
 
         public override void OnSend(int _numOfBytes)
         {
-            Console.WriteLine($"Transferred bytes : {_numOfBytes}");
+            Console.WriteLine($"[Client] Transferred bytes : {_numOfBytes}");
         }
     }
 
@@ -74,6 +74,19 @@ namespace DummyClient
             IPHostEntry ipHost = Dns.GetHostEntry(host);
             IPAddress ipAddr = ipHost.AddressList[0]; //아이피가 여러개 있을수 있으며 배열로 ip를 반환함
             IPEndPoint endPoint = new IPEndPoint(ipAddr, 7777);
+            //IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 7777);
+
+            //try
+            //{
+            //    TcpListener tcpListener = new TcpListener(IPAddress.Any, 7777);
+            //    tcpListener.Start();
+            //    Console.WriteLine("[Client] TcpListener Start");
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine("[Client] Error starting server: " + ex.Message);
+            //}
+            Thread.Sleep(5000);
 
             Connector connector = new Connector();
 

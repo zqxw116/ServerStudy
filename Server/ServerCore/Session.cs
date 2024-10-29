@@ -159,7 +159,7 @@ namespace ServerCore
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine($"OnRecvCompleted Fao;ed {e}");
+                        Console.WriteLine($"OnRecvCompleted Failed {e}");
                     }
                 }
                 else
@@ -184,6 +184,8 @@ namespace ServerCore
              * SocketAsyncEventArgs에 의해 OnRecvCompleted() 실행.
             */
             bool pending = socket.ReceiveAsync(recvArgs);
+            Console.WriteLine($"[Session]Socket connected: {socket.Connected}");
+
             if (pending == false)
             {
                 OnRecvCompleted(null, recvArgs);
@@ -234,6 +236,8 @@ namespace ServerCore
             else
             {
                 // TODO
+                Console.WriteLine($"[Session] Receive failed. BytesTransferred: {_args.BytesTransferred}, SocketError: {_args.SocketError}");
+
             }
         }
         #endregion
