@@ -230,7 +230,7 @@ namespace ServerCore
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"OnRecvCompleted Failed {e}");
+                    Console.WriteLine($"OnRecvCompleted Failed : {e}");
                 }
             }
             else

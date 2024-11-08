@@ -33,8 +33,15 @@ namespace ServerCore
                 return;
 
             bool pending = socket.ConnectAsync(_args);
-            if (pending)
+            // ConnectAsync가 비동기적으로 처리되면, 완료된 후에만 OnConnectCompleted가 호출됩니다.
+
+            // 바보.. 여태껏  pending == ture로 적용하고 있었어....
+            if (!pending)
+            {
+                // 비동기 작업이 완료되지 않은 경우, 즉시 호출
                 OnConnectCompleted(null, _args);
+
+            }
 
         }
 
