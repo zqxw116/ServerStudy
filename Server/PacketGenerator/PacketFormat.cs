@@ -8,6 +8,33 @@ namespace PacketGenerator
 {
     class PacketFormat
     {
+        // ------------- 파일 자체애 대한 포맷
+
+        // {0} 패킷 이름/번호 목록
+        // {1} 패킷 목록
+        public static string fileFormat =
+@"using System;
+using System.Collections.Specialized;
+using System.Net;
+using System.Text;
+using ServerCore;
+
+
+public enum PacktID
+{{
+    {0}
+}}
+
+{1}
+";
+
+        // {0} 패킷 이름
+        // {1} 패킷 번호
+        public static string packetEnumFormat =
+@"{0} = {1},";
+
+        // ------------- 아래는 패킷에 대한 내용
+
         // {0} 패킷 이름
         // {1} 멤버 변수들
         // {2} 멤버 변수 Read
@@ -35,16 +62,12 @@ class {0}
     public ArraySegment<byte> Write()
     {{
         // 할당 받은 buffer 열어서 원하는 사이즈를 확보하고
-        ArraySegment<byte> segement = SendBufferHelper.Open(4096); //openSegment
+        ArraySegment<byte> segment = SendBufferHelper.Open(4096); //openSegment
         bool success = true;
         // 지금까지 몇 byte를 넣었는지
         ushort count = 0; // ushort로 해야 size가 맞다
 
-
-        Span<byte> s = new Span<byte>(segement.Array, segement.Offset, segement.Count);
-
-
-        // [] [] [] [] [] [] [] []  <- 2byte를 넣어주면 그 다음으로 buffer가 줄어야한다.
+        Span<byte> s = new Span<byte>(segment.Array, segment.Offset, segment.Count);
 
         // slice는 span 자체가 변하는게 아니라 결과값이 span의 byte로 뽑혀오기 때문.
         // span 에서 slice로 바꾼 이유는 span이라는 타입으로 반환하기 때문에 그것을 사용. 코드가 깔끔
@@ -72,14 +95,14 @@ class {0}
 @"public {0} {1};";
 
 
-        // {0} 리스트 이름 [대문자] struct의 이름
+        // {0} 리스트 이름 [대문자] class의 이름
         // {1} 리스트 이름 [소문자]
         // {2} 멤버 변수들
         // {3} 멤버 변수 Read
         // {4} 멤버 변수 Write
         public static string memberListFormat =
 @"
-public struct {0}
+public class {0}
 {{
     {2}
 
@@ -112,12 +135,18 @@ public List<{0}> {1}s = new List<{0}>();
 count += sizeof({2});";
 
         // {0} 변수 이름
+        // {1} 변수 형식
+        public static string readByteFormat =
+@"this.{0} = ({1})segment.Array[segment.Offset + count];
+count += sizeof({1});";
+
+        // {0} 변수 이름
         public static string readStringFormat =
 @"ushort {0}Len = BitConverter.ToUInt16(s.Slice(count, s.Length - count));
 count += sizeof(ushort);
 
 // 누군가가 패킷을 조작할 수 있기 때문에 만약의 사테를 두고 작업해야함
-this.{0} = Encoding.Unicode.GetString(s.Slice(count, nameLen));
+this.{0} = Encoding.Unicode.GetString(s.Slice(count, {0}Len));
 count += {0}Len;";
 
         // {0} 리스트 이름 [대문자]
@@ -142,9 +171,15 @@ for (int i = 0; i < {1}Len; i++)
 count += sizeof({1}); // playerId(byte) 만큼";
 
         // {0} 변수 이름
+        // {1} 변수 형식
+        public static string writeByteFormat =
+@"segment.Array[segment.Offset + count] = (byte)this.{0};
+count += sizeof({1});";
+
+        // {0} 변수 이름
         public static string writeStringFormat =
-@"// name 건네주고 0부터 시작해서, name을 전체 복사할건데, segement 배열에다가 segement.Offset + count 만큼 + 추가 ushort만큼 공간을 마련해야함(name Length).
-ushort {0}Len = (ushort)Encoding.Unicode.GetBytes(this.{0}, 0, this.{0}.Length, segement.Array, segement.Offset + count + sizeof(ushort));
+@"// name 건네주고 0부터 시작해서, name을 전체 복사할건데, segment 배열에다가 segment.Offset + count 만큼 + 추가 ushort만큼 공간을 마련해야함(name Length).
+ushort {0}Len = (ushort)Encoding.Unicode.GetBytes(this.{0}, 0, this.{0}.Length, segment.Array, segment.Offset + count + sizeof(ushort));
 success &= BitConverter.TryWriteBytes(s.Slice(count, s.Length - count), {0}Len);
 count += sizeof(ushort);
 count += {0}Len;";
