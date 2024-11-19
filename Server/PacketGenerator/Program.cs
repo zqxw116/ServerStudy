@@ -14,12 +14,22 @@ namespace PacketGenerator
         static string packetEnums;
         static void Main(string[] args)
         {
+            //   ../ 는 exe파일 기준 한개의 상위폴더 위에 것을 찾는 다는 말.
+            string pdlPath = "../PDL.xml";
+
             XmlReaderSettings settings = new XmlReaderSettings()
             {
                 IgnoreComments = true,
                 IgnoreWhitespace = true,
             };
-            using (XmlReader r = XmlReader.Create("PDL.xml", settings))
+
+            // args를 배치파일에서 경로를 넣어줘서 경로에 생성.
+            if (args.Length >= 1 )
+            {
+                pdlPath = args[0];
+            }
+
+            using (XmlReader r = XmlReader.Create(pdlPath, settings))
             {
                 r.MoveToContent();
                 // string형식으로 한줄 한줄 읽어온다.
